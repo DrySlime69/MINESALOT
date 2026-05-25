@@ -1,32 +1,31 @@
-# Underground Caverns RPG — Spore Grotto Build
+# BELOW — Painted Spore Grotto Pass
 
-This build contains the first playable biome pass:
+This build upgrades the first 10 levels into a more hand-painted, reference-art-inspired Spore Grotto.
 
-## Included
+## What changed
 
-- Levels 1–10 are locked to **Spore Grotto**
-- Player character
-- WASD / arrow key movement
-- Camera follow
-- Collision with cave walls
-- Procedural cave generation per level
-- Spore Grotto floor/wall palette
-- Mushroom decor clusters
-- Ore chunk placement
-- Level transition stairs
-- Level HUD
+- Levels 1–10 remain Spore Grotto
+- Player + movement retained
+- Much more organic cave generation
+- Big landmark caverns and winding tunnels
+- Large hand-drawn-style fungal gardens
+- Painted floor blotches and mossy overlays
+- Glowing spore pools
+- Floating spore particles
+- Softer lighting and atmospheric fog
+- Less visible tile repetition
 
 ## Controls
 
 ```text
 WASD / Arrow Keys — Move
-E — Use stairs when standing near them
-R — Restart current level
+E — Use stairs when close
+R — Restart level
 ```
 
-## Run locally
+## Run
 
-Use VS Code Live Server, or run:
+Use VS Code Live Server or:
 
 ```bash
 python -m http.server 8000
@@ -38,6 +37,6 @@ Then open:
 http://localhost:8000
 ```
 
-## GitHub use
+## GitHub
 
-Extract the folder, open GitHub Desktop, choose **Add Local Repository**, select this folder, commit, and publish.
+Extract this folder into your GitHub repo, replacing the old files. Then commit and push.

@@ -21,22 +21,12 @@ class GameScene extends Phaser.Scene {
     createGeneratedTextures(this);
     this.buildLevel(this.level);
 
-    this.input.keyboard.on("keydown-R", () => {
-      this.scene.restart({ level: this.level });
-    });
+    this.input.keyboard.on("keydown-R", () => this.scene.restart({ level: this.level }));
 
     this.input.keyboard.on("keydown-E", () => {
       if (!this.player || !this.stairs) return;
-      const distance = Phaser.Math.Distance.Between(
-        this.player.sprite.x,
-        this.player.sprite.y,
-        this.stairs.x,
-        this.stairs.y
-      );
-
-      if (distance < 70 && this.level < 10) {
-        this.scene.restart({ level: this.level + 1 });
-      }
+      const distance = Phaser.Math.Distance.Between(this.player.sprite.x, this.player.sprite.y, this.stairs.x, this.stairs.y);
+      if (distance < 78 && this.level < 10) this.scene.restart({ level: this.level + 1 });
     });
   }
 
@@ -47,40 +37,9 @@ class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE);
     const walls = this.physics.add.staticGroup();
 
-    for (let y = 0; y < MAP_HEIGHT; y++) {
-      for (let x = 0; x < MAP_WIDTH; x++) {
-        const isWall = map[y][x] === 1;
-        const key = isWall ? "wall_tile" : "floor_tile";
-        const tint = isWall
-          ? Phaser.Display.Color.Interpolate.ColorWithColor(
-              Phaser.Display.Color.ValueToColor(biome.wall),
-              Phaser.Display.Color.ValueToColor(biome.wallAlt),
-              100,
-              Phaser.Math.Between(0, 100)
-            )
-          : Phaser.Display.Color.Interpolate.ColorWithColor(
-              Phaser.Display.Color.ValueToColor(biome.floor),
-              Phaser.Display.Color.ValueToColor(biome.floorAlt),
-              100,
-              Phaser.Math.Between(0, 100)
-            );
-
-        this.add.image(x * TILE_SIZE, y * TILE_SIZE, key)
-          .setOrigin(0)
-          .setTint(Phaser.Display.Color.GetColor(tint.r, tint.g, tint.b))
-          .setDepth(isWall ? 5 : 0);
-
-        if (isWall) {
-          walls.create(x * TILE_SIZE + 16, y * TILE_SIZE + 16, null)
-            .setVisible(false)
-            .setSize(32, 32)
-            .refreshBody();
-        }
-      }
-    }
-
-    placeOreChunks(this, map, biome);
+    this.paintBaseMap(map, biome, walls);
     placeDecor(this, map, biome);
+    placeOreChunks(this, map, biome);
     this.placeStairs(map);
     addBiomeLighting(this, biome);
 
@@ -96,13 +55,45 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE);
     this.cameras.main.setZoom(1.45);
 
-    this.add.text(18, 18, `Spore Grotto — Level ${level}/10\nWASD/Arrows move | E stairs | R restart`, {
+    this.add.text(18, 18, `BELOW — Spore Grotto ${level}/10\nWASD/Arrows move | E stairs | R restart`, {
       fontFamily: "monospace",
       fontSize: "16px",
-      color: "#ffe36e",
+      color: "#eaff9a",
       backgroundColor: "rgba(0,0,0,0.5)",
       padding: { x: 10, y: 8 }
     }).setScrollFactor(0).setDepth(100);
+  }
+
+  paintBaseMap(map, biome, walls) {
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      for (let x = 0; x < MAP_WIDTH; x++) {
+        const isWall = map[y][x] === 1;
+        const key = isWall ? "wall_tile" : "floor_tile";
+        const tint = randomBlend(isWall ? biome.wall : biome.floor, isWall ? biome.wallAlt : biome.floorAlt);
+
+        this.add.image(x * TILE_SIZE, y * TILE_SIZE, key)
+          .setOrigin(0)
+          .setTint(tint)
+          .setDepth(isWall ? 8 : 0);
+
+        if (!isWall && hasNeighborWall(map, x, y)) {
+          this.add.rectangle(x * TILE_SIZE + 16, y * TILE_SIZE + 16, 34, 34, 0x000000, 0.18)
+            .setDepth(1);
+        }
+
+        if (isWall) {
+          walls.create(x * TILE_SIZE + 16, y * TILE_SIZE + 16, null)
+            .setVisible(false)
+            .setSize(32, 32)
+            .refreshBody();
+
+          if (map[y + 1]?.[x] === 0) {
+            this.add.ellipse(x * TILE_SIZE + 16, y * TILE_SIZE + 29, 40, 12, 0x79f06f, 0.10)
+              .setDepth(9);
+          }
+        }
+      }
+    }
   }
 
   placeStairs(map) {
@@ -111,9 +102,10 @@ class GameScene extends Phaser.Scene {
     const centerY = Math.floor(MAP_HEIGHT / 2);
     let bestDistance = 0;
 
-    for (let y = 3; y < MAP_HEIGHT - 3; y++) {
-      for (let x = 3; x < MAP_WIDTH - 3; x++) {
+    for (let y = 4; y < MAP_HEIGHT - 4; y++) {
+      for (let x = 4; x < MAP_WIDTH - 4; x++) {
         if (map[y][x] !== 0) continue;
+        if (!isOpenArea(map, x, y, 2)) continue;
         const distance = Phaser.Math.Distance.Between(x, y, centerX, centerY);
         if (distance > bestDistance) {
           bestDistance = distance;
@@ -123,12 +115,17 @@ class GameScene extends Phaser.Scene {
     }
 
     best ??= { x: centerX + 8, y: centerY };
+    const worldX = best.x * TILE_SIZE;
+    const worldY = best.y * TILE_SIZE;
 
-    this.stairs = this.add.image(best.x * TILE_SIZE, best.y * TILE_SIZE, "stairs_down")
+    this.add.image(worldX, worldY, "soft_green_glow")
+      .setDepth(2)
+      .setScale(0.85)
+      .setAlpha(0.45);
+
+    this.stairs = this.add.image(worldX, worldY, "stairs_down")
       .setOrigin(0.5, 0.75)
       .setDepth(6);
-
-    this.add.circle(best.x * TILE_SIZE, best.y * TILE_SIZE, 58, 0x79f06f, 0.08).setDepth(2);
   }
 
   update() {
@@ -136,12 +133,35 @@ class GameScene extends Phaser.Scene {
   }
 }
 
+function isOpenArea(map, x, y, r) {
+  for (let yy = y - r; yy <= y + r; yy++) {
+    for (let xx = x - r; xx <= x + r; xx++) {
+      if (map[yy]?.[xx] !== 0) return false;
+    }
+  }
+  return true;
+}
+
+function hasNeighborWall(map, x, y) {
+  return map[y - 1]?.[x] === 1 || map[y + 1]?.[x] === 1 || map[y]?.[x - 1] === 1 || map[y]?.[x + 1] === 1;
+}
+
+function randomBlend(a, b) {
+  const ca = Phaser.Display.Color.ValueToColor(a);
+  const cb = Phaser.Display.Color.ValueToColor(b);
+  const t = Math.random();
+  const r = Math.floor(ca.r + (cb.r - ca.r) * t);
+  const g = Math.floor(ca.g + (cb.g - ca.g) * t);
+  const bl = Math.floor(ca.b + (cb.b - ca.b) * t);
+  return Phaser.Display.Color.GetColor(r, g, bl);
+}
+
 const config = {
   type: Phaser.AUTO,
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   parent: "game",
-  backgroundColor: "#05070a",
+  backgroundColor: "#030706",
   pixelArt: false,
   physics: {
     default: "arcade",
